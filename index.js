@@ -4,32 +4,46 @@ const cors = require("cors");
 require("dotenv").config();
 
 const authRoutes = require("./routes/auth");
-const quizRoutes = require("./routes/quiz");
 
 const app = express();
 
-// 🟢 Konfiguracja CORS (dostosuj origin, np. http://localhost:5173 lub Netlify)
-app.use(cors({
-  origin: "http://localhost:5173",
-  credentials: true,
-}));
+// KONFIGURACJA CORS – ZEZWÓL NA FRONTEND Z NETLIFY I LOKALHOST
+const allowedOrigins = [
+  "http://localhost:5173",                 // lokalny frontend
+  "https://twoja-domena.netlify.app",     // zastąp własnym adresem Netlify
+  "https://decure.pl"                     // jeśli masz własną domenę
+];
 
-// 🟢 Obsługa preflight
-app.options("*", cors());
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // pozwól na brak origin (np. curl lub postman) lub dozwolony origin
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
 
 app.use(express.json());
-
 app.use("/api/auth", authRoutes);
-app.use("/api/quiz", quizRoutes);
 
-console.log("Mongo URI:", process.env.MONGO_URI);
+// SPRAWDŹ, CZY MONGO_URI ISTNIEJE
+if (!process.env.MONGO_URI) {
+  console.error("Brak MONGO_URI w pliku .env");
+  process.exit(1);
+}
 
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log("MongoDB connected"))
-.catch((err) => console.error("MongoDB connection error:", err));
+mongoose
+  .connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => console.log("MongoDB connected"))
+  .catch((err) => console.error("MongoDB connection error:", err));
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
